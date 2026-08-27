@@ -1,4 +1,4 @@
-# srp_tasks.py
+# srp_tasks.py (ฉบับอัปเดตเพิ่ม Priority)
 from abc import ABC, abstractmethod
 
 
@@ -15,11 +15,19 @@ class TaskStorage(ABC):
 
 class Task:
 
-    def __init__(self, task_id, description, due_date=None, completed=False):
+    def __init__(
+        self,
+        task_id,
+        description,
+        due_date=None,
+        completed=False,
+        priority="medium",
+    ):
         self.id = task_id
         self.description = description
         self.due_date = due_date
         self.completed = completed
+        self.priority = priority  # เพิ่ม priority attribute
 
     def mark_completed(self):
         self.completed = True
@@ -28,7 +36,7 @@ class Task:
     def __str__(self):
         status = "\u2713" if self.completed else " "
         due = f" (Due: {self.due_date})" if self.due_date else ""
-        return f"[{status}] {self.id}. {self.description}{due}"
+        return f"[{status}] {self.id}. {self.description}{due} [Priority: {self.priority}]"
 
 
 class FileTaskStorage(TaskStorage):
@@ -42,13 +50,20 @@ class FileTaskStorage(TaskStorage):
             with open(self.filename, "r") as f:
                 for line in f:
                     parts = line.strip().split(",")
-                    if len(parts) == 4:
+                    if len(parts) >= 4:
                         task_id = int(parts[0])
                         description = parts[1]
                         due_date = parts[2] if parts[2] != "None" else None
                         completed = parts[3] == "True"
+                        priority = parts[4] if len(parts) > 4 else "medium"
                         loaded_tasks.append(
-                            Task(task_id, description, due_date, completed)
+                            Task(
+                                task_id,
+                                description,
+                                due_date,
+                                completed,
+                                priority,
+                            )
                         )
         except FileNotFoundError:
             print(
@@ -60,7 +75,7 @@ class FileTaskStorage(TaskStorage):
         with open(self.filename, "w") as f:
             for task in tasks:
                 f.write(
-                    f"{task.id},{task.description},{task.due_date},{task.completed}\n"
+                    f"{task.id},{task.description},{task.due_date},{task.completed},{task.priority}\n"
                 )
         print(f"Tasks saved to {self.filename}")
 
@@ -73,10 +88,9 @@ class TaskManager:
         self.next_id = (
             max([t.id for t in self.tasks] + [0]) + 1 if self.tasks else 1
         )
-        print(f"Loaded {len(self.tasks)} tasks. Next ID: {self.next_id}")
 
-    def add_task(self, description, due_date=None):
-        task = Task(self.next_id, description, due_date)
+    def add_task(self, description, due_date=None, priority="medium"):
+        task = Task(self.next_id, description, due_date, priority=priority)
         self.tasks.append(task)
         self.next_id += 1
         self.storage.save_tasks(self.tasks)
@@ -106,15 +120,3 @@ class TaskManager:
             return True
         print(f"Task {task_id} not found.")
         return False
-
-
-# --- Main Program Logic ---
-if __name__ == "__main__":
-    file_storage = FileTaskStorage("my_tasks.txt")
-    manager = TaskManager(file_storage)
-    manager.list_tasks()
-    manager.add_task("Review SOLID Principles", "2024-08-10")
-    manager.add_task("Prepare for Final Exam", "2024-08-15")
-    manager.list_tasks()
-    manager.mark_task_completed(1)
-    manager.list_tasks()
